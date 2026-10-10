@@ -1,10 +1,11 @@
-import random
 import streamlit as st
 
+from ai.missions import generate_missions
 
 
+# ============================================================
 # PAGE CONFIGURATION
-
+# ============================================================
 
 st.set_page_config(
     page_title="EcoPulse",
@@ -14,38 +15,15 @@ st.set_page_config(
 )
 
 
-# MISSION POOL
-
-
-MISSION_POOL = [
-    "🌸 Find a flowering plant.",
-    "🐝 Find an insect interacting with a plant.",
-    "🍃 Find two leaves that look different.",
-    "💧 Find a water drop resting on a leaf.",
-    "🪶 Find a feather on the ground.",
-    "🌳 Find a tree with unusual bark.",
-    "🕷️ Find a spider web.",
-    "🌱 Find a small plant growing near a larger plant.",
-    "🐜 Find ants working together.",
-    "🌼 Find a flower being visited by an insect.",
-    "🍂 Find a leaf that has started changing color.",
-    "🌿 Find a plant growing in an unusual place.",
-    "🐦 Spot a bird and observe it without disturbing it.",
-    "🪨 Find a natural object with an interesting texture.",
-    "☀️ Find a plant growing in a sunny location.",
-]
-
+# ============================================================
 # SESSION STATE
-#
+# ============================================================
 
 if "score" not in st.session_state:
     st.session_state.score = 0
 
 if "missions" not in st.session_state:
-    st.session_state.missions = random.sample(
-        MISSION_POOL,
-        5
-    )
+    st.session_state.missions = []
 
 if "completed_missions" not in st.session_state:
     st.session_state.completed_missions = 0
@@ -54,8 +32,9 @@ if "exploring" not in st.session_state:
     st.session_state.exploring = False
 
 
+# ============================================================
 # HEADER
-
+# ============================================================
 
 st.title("🌱 EcoPulse")
 
@@ -71,8 +50,74 @@ st.write(
 st.divider()
 
 
-# BIO-BLITZ MISSIONS
+# ============================================================
+# EXPLORATION PREFERENCES
+# ============================================================
 
+st.header("🌍 Choose Your Exploration")
+
+environment = st.selectbox(
+    "Where are you exploring?",
+    [
+        "Park",
+        "College Campus",
+        "Garden",
+        "Forest",
+        "Street",
+        "Lake Area"
+    ]
+)
+
+difficulty = st.selectbox(
+    "Mission difficulty",
+    [
+        "Easy",
+        "Medium",
+        "Hard"
+    ]
+)
+
+biodiversity_type = st.selectbox(
+    "What do you want to observe?",
+    [
+        "General Biodiversity",
+        "Plants",
+        "Insects",
+        "Birds",
+        "Trees",
+        "Flowers"
+    ]
+)
+
+
+# ============================================================
+# GENERATE AI MISSIONS
+# ============================================================
+
+if st.button(
+    "🌱 Generate My Missions",
+    use_container_width=True
+):
+
+    with st.spinner("🤖 Creating your biodiversity missions..."):
+
+        missions = generate_missions(
+            environment,
+            difficulty,
+            biodiversity_type
+        )
+
+    st.session_state.missions = missions
+    st.session_state.completed_missions = 0
+    st.session_state.exploring = False
+
+
+st.divider()
+
+
+# ============================================================
+# BIO-BLITZ MISSIONS
+# ============================================================
 
 st.header("🌿 Today's Bio-Blitz")
 
@@ -80,31 +125,45 @@ st.write(
     "Complete these missions while exploring the world around you."
 )
 
-for i, mission in enumerate(
-    st.session_state.missions,
-    start=1
-):
+if st.session_state.missions:
+
+    for i, mission in enumerate(
+        st.session_state.missions,
+        start=1
+    ):
+
+        st.info(
+            f"🎯 **Mission {i}:** {mission}"
+        )
+
+else:
+
     st.info(
-        f"🎯 **Mission {i}:** {mission}"
+        "Choose your exploration preferences and "
+        "generate your missions to begin."
     )
 
 
-
+# ============================================================
 # START EXPLORING
+# ============================================================
 
+if st.session_state.missions:
 
-if st.button(
-    "🚶 Start Exploring",
-    use_container_width=True
-):
-    st.session_state.exploring = True
+    if st.button(
+        "🚶 Start Exploring",
+        use_container_width=True
+    ):
 
-    st.success(
-        "Great! Put your phone away and start exploring. 🌳"
-    )
+        st.session_state.exploring = True
+
+        st.success(
+            "Great! Put your phone away and start exploring. 🌳"
+        )
 
 
 if st.session_state.exploring:
+
     st.caption(
         "💡 Tip: Spend a few minutes observing your surroundings "
         "before taking out your phone."
@@ -114,20 +173,23 @@ if st.session_state.exploring:
 st.divider()
 
 
+# ============================================================
 # PROGRESS
-
+# ============================================================
 
 st.header("🌱 Your Progress")
 
 col1, col2 = st.columns(2)
 
 with col1:
+
     st.metric(
         "BioPoints",
         st.session_state.score
     )
 
 with col2:
+
     st.metric(
         "Missions",
         f"{st.session_state.completed_missions} / 5"
@@ -136,6 +198,8 @@ with col2:
 
 st.divider()
 
+
+# ============================================================
 # RECORD DISCOVERY
 # ============================================================
 
@@ -174,7 +238,7 @@ if uploaded_file is not None:
     ):
 
         st.info(
-            "🤖 AI analysis will be connected here next."
+            "🤖 AI image analysis will be connected here next."
         )
 
 
