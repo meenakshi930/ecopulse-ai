@@ -2,6 +2,8 @@ import streamlit as st
 
 from ai.missions import generate_missions
 
+from ai.vision import analyze_discovery
+
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -30,6 +32,8 @@ if "completed_missions" not in st.session_state:
 
 if "exploring" not in st.session_state:
     st.session_state.exploring = False
+if "discovery_result" not in st.session_state:
+    st.session_state.discovery_result = ""
 
 
 # ============================================================
@@ -237,9 +241,11 @@ if uploaded_file is not None:
         use_container_width=True
     ):
 
-        st.info(
-            "🤖 AI image analysis will be connected here next."
-        )
+        with st.spinner("🤖 Analyzing your discovery..."):
+
+            result = analyze_discovery(uploaded_file)
+
+        st.session_state.discovery_result = result
 
 
 st.divider()
@@ -251,16 +257,22 @@ st.divider()
 
 st.header("🔎 AI Discovery")
 
-st.write(
-    "Your AI identification and biodiversity information "
-    "will appear here."
-)
+if st.session_state.discovery_result:
 
-st.write("**Identification:** —")
+    st.write("### 🤖 AI Analysis")
 
-st.write("**Explanation:** —")
+    st.write(
+        st.session_state.discovery_result
+    )
 
-st.write("**BioPoints earned:** —")
+else:
+
+    st.write("**Identification:** —")
+
+    st.write("**Explanation:** —")
+
+    st.write("**Biodiversity Information:** —")
+
 
 
 # ============================================================
