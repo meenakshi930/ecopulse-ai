@@ -1,25 +1,20 @@
 import streamlit as st
 
 from ai.missions import generate_missions
-
 from ai.vision import analyze_discovery
+from services.inaturalist import get_species_info
 
-
-# ============================================================
-# PAGE CONFIGURATION
-# ============================================================
 
 st.set_page_config(
     page_title="EcoPulse",
     page_icon="🌱",
-    layout="centered",
-    initial_sidebar_state="auto"
+    layout="centered"
 )
 
 
-# ============================================================
-# SESSION STATE
-# ============================================================
+# -----------------------------
+# Session State
+# -----------------------------
 
 if "score" not in st.session_state:
     st.session_state.score = 0
@@ -28,37 +23,33 @@ if "missions" not in st.session_state:
     st.session_state.missions = []
 
 if "completed_missions" not in st.session_state:
-    st.session_state.completed_missions = 0
+    st.session_state.completed_missions = []
 
-if "exploring" not in st.session_state:
-    st.session_state.exploring = False
 if "discovery_result" not in st.session_state:
-    st.session_state.discovery_result = ""
+    st.session_state.discovery_result = None
+
+if "inaturalist_result" not in st.session_state:
+    st.session_state.inaturalist_result = None
 
 
-# ============================================================
-# HEADER
-# ============================================================
+# -----------------------------
+# Header
+# -----------------------------
 
 st.title("🌱 EcoPulse")
-
-st.subheader(
-    "Turn your walk into a biodiversity adventure."
-)
+st.subheader("AI Bio-Blitz")
 
 st.write(
-    "Complete outdoor missions, discover local biodiversity, "
-    "and use AI to learn about what you find."
+    "Explore the outdoors, discover biodiversity, "
+    "and learn about what you find."
 )
 
-st.divider()
 
+# -----------------------------
+# User Preferences
+# -----------------------------
 
-# ============================================================
-# EXPLORATION PREFERENCES
-# ============================================================
-
-st.header("🌍 Choose Your Exploration")
+st.header("🌿 Plan Your Exploration")
 
 environment = st.selectbox(
     "Where are you exploring?",
@@ -73,7 +64,7 @@ environment = st.selectbox(
 )
 
 difficulty = st.selectbox(
-    "Mission difficulty",
+    "Choose difficulty",
     [
         "Easy",
         "Medium",
@@ -82,7 +73,7 @@ difficulty = st.selectbox(
 )
 
 biodiversity_type = st.selectbox(
-    "What do you want to observe?",
+    "What do you want to discover?",
     [
         "General Biodiversity",
         "Plants",
@@ -94,16 +85,18 @@ biodiversity_type = st.selectbox(
 )
 
 
-# ============================================================
-# GENERATE AI MISSIONS
-# ============================================================
+# -----------------------------
+# Generate Missions
+# -----------------------------
 
 if st.button(
     "🌱 Generate My Missions",
     use_container_width=True
 ):
 
-    with st.spinner("🤖 Creating your biodiversity missions..."):
+    with st.spinner(
+        "🤖 Creating your biodiversity missions..."
+    ):
 
         missions = generate_missions(
             environment,
@@ -112,119 +105,85 @@ if st.button(
         )
 
     st.session_state.missions = missions
-    st.session_state.completed_missions = 0
-    st.session_state.exploring = False
+    st.session_state.completed_missions = []
+    st.session_state.score = 0
+    st.session_state.discovery_result = None
+    st.session_state.inaturalist_result = None
 
 
-st.divider()
-
-
-# ============================================================
-# BIO-BLITZ MISSIONS
-# ============================================================
-
-st.header("🌿 Today's Bio-Blitz")
-
-st.write(
-    "Complete these missions while exploring the world around you."
-)
+# -----------------------------
+# Display Missions
+# -----------------------------
 
 if st.session_state.missions:
+
+    st.header("🎯 Your Missions")
 
     for i, mission in enumerate(
-        st.session_state.missions,
-        start=1
+        st.session_state.missions
     ):
 
-        st.info(
-            f"🎯 **Mission {i}:** {mission}"
+        st.write(
+            f"### Mission {i + 1}"
         )
 
-else:
+        st.write(mission)
 
-    st.info(
-        "Choose your exploration preferences and "
-        "generate your missions to begin."
-    )
+        if i not in st.session_state.completed_missions:
 
+            if st.button(
+                f"✅ Complete Mission {i + 1}",
+                key=f"complete_{i}"
+            ):
 
-# ============================================================
-# START EXPLORING
-# ============================================================
+                st.session_state.completed_missions.append(i)
 
-if st.session_state.missions:
+                st.session_state.score += 10
 
-    if st.button(
-        "🚶 Start Exploring",
-        use_container_width=True
-    ):
+                st.rerun()
 
-        st.session_state.exploring = True
+        else:
 
-        st.success(
-            "Great! Put your phone away and start exploring. 🌳"
-        )
+            st.success("Mission completed!")
 
 
-if st.session_state.exploring:
-
-    st.caption(
-        "💡 Tip: Spend a few minutes observing your surroundings "
-        "before taking out your phone."
-    )
-
+# -----------------------------
+# Progress
+# -----------------------------
 
 st.divider()
-
-
-# ============================================================
-# PROGRESS
-# ============================================================
-
-st.header("🌱 Your Progress")
 
 col1, col2 = st.columns(2)
 
 with col1:
-
     st.metric(
-        "BioPoints",
+        "🌱 BioPoints",
         st.session_state.score
     )
 
 with col2:
-
     st.metric(
-        "Missions",
-        f"{st.session_state.completed_missions} / 5"
+        "🎯 Missions",
+        f"{len(st.session_state.completed_missions)}/"
+        f"{len(st.session_state.missions)}"
     )
 
 
+# -----------------------------
+# Discovery Upload
+# -----------------------------
+
 st.divider()
 
-
-# ============================================================
-# RECORD DISCOVERY
-# ============================================================
-
-st.header("📸 Record Your Discovery")
-
-st.write(
-    "Found something interesting outside? "
-    "Take a photo and upload it here."
-)
+st.header("📸 Discover Something")
 
 uploaded_file = st.file_uploader(
-    "Upload your discovery",
+    "Upload a photo of your discovery",
     type=["jpg", "jpeg", "png"]
 )
 
 
-# ============================================================
-# DISPLAY UPLOADED IMAGE
-# ============================================================
-
-if uploaded_file is not None:
+if uploaded_file:
 
     st.image(
         uploaded_file,
@@ -232,52 +191,134 @@ if uploaded_file is not None:
         use_container_width=True
     )
 
-    st.write(
-        "Ready to learn more about your discovery?"
-    )
-
     if st.button(
         "🔍 Analyze Discovery",
         use_container_width=True
     ):
 
-        with st.spinner("🤖 Analyzing your discovery..."):
+        with st.spinner(
+            "🤖 Analyzing your discovery..."
+        ):
 
-            result = analyze_discovery(uploaded_file)
+            result = analyze_discovery(
+                uploaded_file
+            )
 
         st.session_state.discovery_result = result
 
+        identification = result.get(
+            "identification",
+            "Unknown"
+        )
 
-st.divider()
+        # -----------------------------
+        # iNaturalist Lookup
+        # -----------------------------
+
+        if identification != "Unknown":
+
+            with st.spinner(
+                "🌿 Finding biodiversity information..."
+            ):
+
+                species_info = get_species_info(
+                    identification
+                )
+
+            st.session_state.inaturalist_result = (
+                species_info
+            )
+
+        else:
+
+            st.session_state.inaturalist_result = None
 
 
-# ============================================================
-# AI DISCOVERY
-# ============================================================
-
-st.header("🔎 AI Discovery")
+# -----------------------------
+# AI Discovery Result
+# -----------------------------
 
 if st.session_state.discovery_result:
 
-    st.write("### 🤖 AI Analysis")
+    result = st.session_state.discovery_result
+
+    st.divider()
+
+    st.header("🔎 AI Discovery")
 
     st.write(
-        st.session_state.discovery_result
+        f"**Identification:** "
+        f"{result.get('identification', 'Unknown')}"
     )
 
-else:
+    st.write(
+        f"**Confidence:** "
+        f"{result.get('confidence', 'Low')}"
+    )
 
-    st.write("**Identification:** —")
+    st.write(
+        f"**Explanation:** "
+        f"{result.get('explanation', '')}"
+    )
 
-    st.write("**Explanation:** —")
+    st.write(
+        f"**AI Biodiversity Information:** "
+        f"{result.get('biodiversity_information', '')}"
+    )
 
-    st.write("**Biodiversity Information:** —")
+
+# -----------------------------
+# iNaturalist Result
+# -----------------------------
+
+if st.session_state.inaturalist_result:
+
+    info = st.session_state.inaturalist_result
+
+    st.divider()
+
+    st.header("🌿 iNaturalist Information")
+
+    st.write(
+        f"**Scientific Name:** "
+        f"{info.get('name', 'Unknown')}"
+    )
+
+    st.write(
+        f"**Common Name:** "
+        f"{info.get('common_name', 'Unknown')}"
+    )
+
+    st.write(
+        f"**Rank:** "
+        f"{info.get('rank', 'Unknown')}"
+    )
+
+    observations = info.get(
+        "observations_count"
+    )
+
+    if observations is not None:
+
+        st.write(
+            f"**iNaturalist Observations:** "
+            f"{observations}"
+        )
+
+    wikipedia_url = info.get(
+        "wikipedia_url"
+    )
+
+    if wikipedia_url:
+
+        st.markdown(
+            f"[Learn more on Wikipedia]({wikipedia_url})"
+        )
 
 
-
-# ============================================================
-# FOOTER
-# ============================================================
+# -----------------------------
+# Footer
+# -----------------------------
 
 st.divider()
 
