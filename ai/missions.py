@@ -24,6 +24,24 @@ FALLBACK_MISSIONS = [
 ]
 
 
+def extract_json_list(text):
+    """
+    Pull the JSON list out of the model's reply.
+
+    The model sometimes wraps the list in ```json fences or adds a
+    sentence before/after it. We keep only the part from the first '['
+    to the last ']' so json.loads sees clean JSON.
+    Returns None if no list markers are found.
+    """
+    start = text.find("[")
+    end = text.rfind("]")
+
+    if start == -1 or end == -1 or end < start:
+        return None
+
+    return text[start:end + 1]
+
+
 def generate_missions(environment, difficulty, biodiversity_type):
 
     prompt = f"""
@@ -53,13 +71,24 @@ Return ONLY a JSON list containing exactly 5 mission strings.
 Do not include explanations or markdown.
 """
 
+    # Declared before try so the except block can print it for debugging
+    raw_text = ""
+
     try:
         response = client.models.generate_content(
             model="gemma-4-31b-it",
             contents=prompt
         )
 
-        missions = json.loads(response.text.strip())
+        raw_text = (response.text or "").strip()
+
+        json_part = extract_json_list(raw_text)
+
+        if json_part is None:
+            print(f"No JSON list found in model reply: {raw_text!r}")
+            return FALLBACK_MISSIONS
+
+        missions = json.loads(json_part)
 
         if not isinstance(missions, list):
             return FALLBACK_MISSIONS
@@ -74,4 +103,5 @@ Do not include explanations or markdown.
 
     except Exception as e:
         print(f"Mission generation failed: {e}")
+        print(f"Raw model reply was: {raw_text!r}")
         return FALLBACK_MISSIONS

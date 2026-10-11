@@ -17,6 +17,24 @@ if not api_key:
 client = genai.Client(api_key=api_key)
 
 
+def extract_json_object(text):
+    """
+    Pull the JSON object out of the model's reply.
+
+    The model sometimes wraps the JSON in ```json fences or adds a
+    sentence before/after it. We keep only the part from the first '{'
+    to the last '}' so json.loads sees clean JSON.
+    Returns None if no object markers are found.
+    """
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start == -1 or end == -1 or end < start:
+        return None
+
+    return text[start:end + 1]
+
+
 def analyze_discovery(image_file):
 
     prompt = """
@@ -43,6 +61,9 @@ Important:
 - Keep the explanation beginner-friendly.
 """
 
+    # Declared before try so the except blocks can print it for debugging
+    raw_text = ""
+
     try:
         image = Image.open(
             BytesIO(image_file.getvalue())
@@ -53,11 +74,24 @@ Important:
             contents=[prompt, image]
         )
 
-        result = json.loads(response.text.strip())
+        raw_text = (response.text or "").strip()
+
+        json_part = extract_json_object(raw_text)
+
+        if json_part is None:
+            print(f"No JSON object found in model reply: {raw_text!r}")
+            raise json.JSONDecodeError("No JSON object found", raw_text, 0)
+
+        result = json.loads(json_part)
+
+        if not isinstance(result, dict):
+            raise json.JSONDecodeError("JSON is not an object", raw_text, 0)
 
         return result
 
     except json.JSONDecodeError:
+
+        print(f"Invalid JSON from vision model: {raw_text!r}")
 
         return {
             "identification": "Unknown",
